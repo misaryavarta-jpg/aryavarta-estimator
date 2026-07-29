@@ -1746,6 +1746,11 @@ elif menu == "Quotation Register & Pipeline":
         won_count = len(q_df[q_df['Status']=='Won']) if 'Won' in q_df['Status'].values else 0
         won_pct = round((won_count / len(q_df)) * 100, 1) if len(q_df)>0 else 0
         q4.metric("Conversion Rate", f"{won_pct}%")
+
+        reg_buf = io.BytesIO()
+        with pd.ExcelWriter(reg_buf, engine="openpyxl") as reg_w:
+            q_df.to_excel(reg_w, index=False, sheet_name="Quotes_Register")
+        st.download_button("📥 Export Full Quotes Register (.XLSX)", reg_buf.getvalue(), f"Quotes_Register_{pd.Timestamp.now().strftime('%Y%m%d')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         
         st.subheader("📊 Quotations Log & Status Manager")
         edited_q = st.data_editor(q_df, num_rows="dynamic")
