@@ -833,14 +833,18 @@ if menu == "Create Panel Quote":
     with st.expander("🤖 Auto-Extract Specs from Customer Text or Upload Document (PDF, Excel, Word, TXT)", expanded=True):
         up_col1, up_col2 = st.columns([1, 1])
         with up_col1:
-            uploaded_inquiry_file = st.file_uploader("📁 Upload Inquiry File (PDF, Excel, Word, TXT, CSV)", type=["pdf", "xlsx", "xls", "csv", "txt", "docx"])
-            if uploaded_inquiry_file is not None:
-                extracted_file_text = extract_text_from_file(uploaded_inquiry_file)
+            uploaded_inquiry_files = st.file_uploader("📁 Upload Inquiry Files (PDF, Excel, Word, TXT, CSV) - Multi-File Supported", type=["pdf", "xlsx", "xls", "csv", "txt", "docx"], accept_multiple_files=True)
+            if uploaded_inquiry_files:
+                combined_texts = []
+                for uf in uploaded_inquiry_files:
+                    txt = extract_text_from_file(uf)
+                    combined_texts.append(f"--- File: {uf.name} ---\n{txt}")
+                extracted_file_text = "\n\n".join(combined_texts)
                 st.session_state["raw_inquiry_text"] = extracted_file_text
-                st.success(f"Loaded '{uploaded_inquiry_file.name}' successfully!")
+                st.success(f"Loaded {len(uploaded_inquiry_files)} file(s) successfully!")
 
         with up_col2:
-            raw_rfq = st.text_area("Paste or Review customer inquiry text:", value=st.session_state.get("raw_inquiry_text", ""), placeholder="e.g. Need 22kW VFD panel with Siemens switchgear and IP55 enclosure.", height=120)
+            raw_rfq = st.text_area("Paste or Review customer inquiry text:", value=st.session_state.get("raw_inquiry_text", ""), placeholder="e.g. Need complete MCC panel with 2x 22kW VFD, 3x 37kW Star-Delta, 4x 7.5kW DOL feeders with Schneider switchgear.", height=120)
 
         if st.button("⚡ Process Inquiry with AI / Smart Extractor"):
             if raw_rfq:
@@ -857,108 +861,165 @@ if menu == "Create Panel Quote":
                 else:
                     st.warning("Could not automatically identify specifications. Please set parameters manually below.")
 
-    c1, c2, c3, c4 = st.columns([3, 3, 3, 3])
-    p_types = ["VFD Panel", "Star-Delta Control Panel", "APFC Panel", "LT Distribution Panel"]
-    m_kw = ["7.5 kW", "15 kW", "22 kW", "37 kW", "55 kW", "75 kW"]
-    b_list = ["L&T", "Siemens", "Schneider", "ABB", "Danfoss", "Delta"]
-    with c1:
-        panel_type = st.selectbox("Panel Type", p_types, index=p_types.index(st.session_state.get("sel_panel", "VFD Panel")) if st.session_state.get("sel_panel") in p_types else 0)
-        client_name = st.text_input("Client Name", "Maharashtra Water Works Ltd")
-    with c2:
-        motor_kw = st.selectbox("Motor Rating", m_kw, index=m_kw.index(st.session_state.get("sel_kw", "15 kW")) if st.session_state.get("sel_kw") in m_kw else 1)
-        preferred_brand = st.selectbox("Switchgear Brand", b_list, index=b_list.index(st.session_state.get("sel_brand", "Schneider")) if st.session_state.get("sel_brand") in b_list else 2)
-    with c3:
-        margin_pct = st.slider("Margin (%)", 5, 40, 18)
-        labor_cost_inr = st.number_input("Wiring & Assembly Labor (₹)", value=4500, step=500)
-    with c4:
-        curr_opt = st.selectbox("Currency", ["INR (₹)", "USD ($)", "EUR (€)", "AED (Dh)"])
-        ex_rate = st.number_input("Exchange Rate (1 FX = X INR)", value=83.5 if "USD" in curr_opt else (91.0 if "EUR" in curr_opt else (22.7 if "AED" in curr_opt else 1.0)), step=0.1)
+    quote_mode = st.radio("Estimation Mode", ["⚡ Single Feeder Panel", "🏢 Full Multi-Feeder Panel / MCC / PCC Board"], horizontal=True)
 
-    curr_sym = "₹" if "INR" in curr_opt else ("$" if "USD" in curr_opt else ("€" if "EUR" in curr_opt else "AED "))
-    labor_cost = labor_cost_inr / ex_rate
+    if quote_mode == "⚡ Single Feeder Panel":
+        c1, c2, c3, c4 = st.columns([3, 3, 3, 3])
+        p_types = ["VFD Panel", "Star-Delta Control Panel", "APFC Panel", "LT Distribution Panel"]
+        m_kw = ["7.5 kW", "15 kW", "22 kW", "37 kW", "55 kW", "75 kW"]
+        b_list = ["L&T", "Siemens", "Schneider", "ABB", "Danfoss", "Delta"]
+        with c1:
+            panel_type = st.selectbox("Panel Type", p_types, index=p_types.index(st.session_state.get("sel_panel", "VFD Panel")) if st.session_state.get("sel_panel") in p_types else 0)
+            client_name = st.text_input("Client Name", "Maharashtra Water Works Ltd")
+        with c2:
+            motor_kw = st.selectbox("Motor Rating", m_kw, index=m_kw.index(st.session_state.get("sel_kw", "15 kW")) if st.session_state.get("sel_kw") in m_kw else 1)
+            preferred_brand = st.selectbox("Switchgear Brand", b_list, index=b_list.index(st.session_state.get("sel_brand", "Schneider")) if st.session_state.get("sel_brand") in b_list else 2)
+        with c3:
+            margin_pct = st.slider("Margin (%)", 5, 40, 18)
+            labor_cost_inr = st.number_input("Wiring & Assembly Labor (₹)", value=4500, step=500)
+        with c4:
+            curr_opt = st.selectbox("Currency", ["INR (₹)", "USD ($)", "EUR (€)", "AED (Dh)"])
+            ex_rate = st.number_input("Exchange Rate (1 FX = X INR)", value=83.5 if "USD" in curr_opt else (91.0 if "EUR" in curr_opt else (22.7 if "AED" in curr_opt else 1.0)), step=0.1)
 
-    st.subheader("🔌 Optional Panel Accessories & Add-Ons")
-    a1, a2, a3, a4 = st.columns(4)
-    add_choke = a1.checkbox("3% Input AC Line Choke", value=True if "VFD" in panel_type else False)
-    add_heater = a2.checkbox("Space Heater + Thermostat", value=True)
-    add_mfm = a3.checkbox("Digital MFM Meter", value=True)
-    add_tower = a4.checkbox("Signal Tower Indicator", value=False)
+        curr_sym = "₹" if "INR" in curr_opt else ("$" if "USD" in curr_opt else ("€" if "EUR" in curr_opt else "AED "))
+        labor_cost = labor_cost_inr / ex_rate
 
-    f_opt = st.selectbox("Freight & Transit Packing Logistics", [
-        "Ex-Factory (No Freight Included)",
-        "Local Pune / PCMC Delivery & Bubble Wrap",
-        "Interstate Transport & Sea-Worthy Wooden Crate"
-    ])
-    freight_price_inr = 0.0 if "Ex-Factory" in f_opt else (1500.0 if "Local" in f_opt else 6500.0)
-    freight_price = freight_price_inr / ex_rate
+        st.subheader("🔌 Optional Panel Accessories & Add-Ons")
+        a1, a2, a3, a4 = st.columns(4)
+        add_choke = a1.checkbox("3% Input AC Line Choke", value=True if "VFD" in panel_type else False)
+        add_heater = a2.checkbox("Space Heater + Thermostat", value=True)
+        add_mfm = a3.checkbox("Digital MFM Meter", value=True)
+        add_tower = a4.checkbox("Signal Tower Indicator", value=False)
 
-    if "custom_bom_items" not in st.session_state:
-        st.session_state["custom_bom_items"] = []
+        f_opt = st.selectbox("Freight & Transit Packing Logistics", [
+            "Ex-Factory (No Freight Included)",
+            "Local Pune / PCMC Delivery & Bubble Wrap",
+            "Interstate Transport & Sea-Worthy Wooden Crate"
+        ])
+        freight_price_inr = 0.0 if "Ex-Factory" in f_opt else (1500.0 if "Local" in f_opt else 6500.0)
+        freight_price = freight_price_inr / ex_rate
 
-    with st.expander("➕ Add Custom / Non-Standard Component to BOM", expanded=False):
-        c_i1, c_i2, c_i3, c_i4, c_i5 = st.columns([3, 3, 2, 2, 2])
-        ci_name = c_i1.text_input("Item Name", "Phase Preventer Relay")
-        ci_spec = c_i2.text_input("Specification", "415V 3-Phase Protection")
-        ci_brand = c_i3.text_input("Brand", "Minilec")
-        ci_qty = c_i4.number_input("Qty", value=1, min_value=1)
-        ci_price_inr = c_i5.number_input("Unit Price (₹)", value=1800.0, step=100.0)
-        
-        ca1, ca2 = st.columns([2, 8])
-        if ca1.button("➕ Add Item"):
-            st.session_state["custom_bom_items"].append({
-                "Item": ci_name, "Specification": ci_spec, "Brand": ci_brand,
-                "Qty": int(ci_qty), "Unit Price": float(ci_price_inr / ex_rate)
-            })
-            st.rerun()
-        if ca2.button("🗑️ Clear Custom Items") and st.session_state["custom_bom_items"]:
+        if "custom_bom_items" not in st.session_state:
             st.session_state["custom_bom_items"] = []
-            st.rerun()
 
-    def build_bom(brand_name):
-        bom = []
-        enc_r = df_prices[df_prices["Category"]=="Enclosure"].iloc[0] if not df_prices[df_prices["Category"]=="Enclosure"].empty else {}
-        bom.append({"Item": "Control Panel Enclosure", "Specification": enc_r.get("Specification","IP54"), "Brand": enc_r.get("Brand","Std"), "Qty": 1, "Unit Price": enc_r.get("Unit_Price_INR",14000) / ex_rate})
-        mccb_df = df_prices[(df_prices["Category"]=="MCCB") & (df_prices["Brand"]==brand_name)]
-        m_r = mccb_df.iloc[0] if not mccb_df.empty else df_prices[df_prices["Category"]=="MCCB"].iloc[0]
-        bom.append({"Item": "Main Incomer MCCB", "Specification": m_r.get("Specification","100A 3P"), "Brand": m_r.get("Brand",brand_name), "Qty": 1, "Unit Price": m_r.get("Unit_Price_INR",4500) / ex_rate})
-        
-        if "VFD" in panel_type:
-            vfd_df = df_prices[(df_prices["Category"]=="VFD") & (df_prices["Brand"]==brand_name)]
-            v_r = vfd_df.iloc[0] if not vfd_df.empty else df_prices[df_prices["Category"]=="VFD"].iloc[0]
-            bom.append({"Item": f"Variable Frequency Drive ({motor_kw})", "Specification": v_r.get("Specification",f"{motor_kw} Drive"), "Brand": v_r.get("Brand",brand_name), "Qty": 1, "Unit Price": v_r.get("Unit_Price_INR",35000) / ex_rate})
-        else:
-            cnt_df = df_prices[(df_prices["Category"]=="Contactor") & (df_prices["Brand"]==brand_name)]
-            c_r = cnt_df.iloc[0] if not cnt_df.empty else df_prices[df_prices["Category"]=="Contactor"].iloc[0]
-            bom.append({"Item": "Power Contactor Set", "Specification": c_r.get("Specification","32A 3P"), "Brand": c_r.get("Brand",brand_name), "Qty": 2, "Unit Price": c_r.get("Unit_Price_INR",2000) / ex_rate})
+        with st.expander("➕ Add Custom / Non-Standard Component to BOM", expanded=False):
+            c_i1, c_i2, c_i3, c_i4, c_i5 = st.columns([3, 3, 2, 2, 2])
+            ci_name = c_i1.text_input("Item Name", "Phase Preventer Relay")
+            ci_spec = c_i2.text_input("Specification", "415V 3-Phase Protection")
+            ci_brand = c_i3.text_input("Brand", "Minilec")
+            ci_qty = c_i4.number_input("Qty", value=1, min_value=1)
+            ci_price_inr = c_i5.number_input("Unit Price (₹)", value=1800.0, step=100.0)
+            
+            ca1, ca2 = st.columns([2, 8])
+            if ca1.button("➕ Add Item"):
+                st.session_state["custom_bom_items"].append({
+                    "Item": ci_name, "Specification": ci_spec, "Brand": ci_brand,
+                    "Qty": int(ci_qty), "Unit Price": float(ci_price_inr / ex_rate)
+                })
+                st.rerun()
+            if ca2.button("🗑️ Clear Custom Items") and st.session_state["custom_bom_items"]:
+                st.session_state["custom_bom_items"] = []
+                st.rerun()
 
-        if add_choke: bom.append({"Item": "3% AC Line Reactor Choke", "Specification": f"{motor_kw} Harmonic Filter", "Brand": "Elcon", "Qty": 1, "Unit Price": 3800 / ex_rate})
-        if add_heater: bom.append({"Item": "Panel Anti-Condensation Heater", "Specification": "80W + Thermostat", "Brand": "Generic", "Qty": 1, "Unit Price": 1400 / ex_rate})
-        if add_mfm: bom.append({"Item": "Digital Multifunction Meter (MFM)", "Specification": "3-Phase V/A/kW/PF", "Brand": "Rishabh", "Qty": 1, "Unit Price": 2800 / ex_rate})
-        if add_tower: bom.append({"Item": "3-Color Signal LED Tower Lamp", "Specification": "24VDC / 230VAC", "Brand": "Generic", "Qty": 1, "Unit Price": 1200 / ex_rate})
+        def build_bom(brand_name):
+            bom = []
+            enc_r = df_prices[df_prices["Category"]=="Enclosure"].iloc[0] if not df_prices[df_prices["Category"]=="Enclosure"].empty else {}
+            bom.append({"Item": "Control Panel Enclosure", "Specification": enc_r.get("Specification","IP54"), "Brand": enc_r.get("Brand","Std"), "Qty": 1, "Unit Price": enc_r.get("Unit_Price_INR",14000) / ex_rate})
+            mccb_df = df_prices[(df_prices["Category"]=="MCCB") & (df_prices["Brand"]==brand_name)]
+            m_r = mccb_df.iloc[0] if not mccb_df.empty else df_prices[df_prices["Category"]=="MCCB"].iloc[0]
+            bom.append({"Item": "Main Incomer MCCB", "Specification": m_r.get("Specification","100A 3P"), "Brand": m_r.get("Brand",brand_name), "Qty": 1, "Unit Price": m_r.get("Unit_Price_INR",4500) / ex_rate})
+            
+            if "VFD" in panel_type:
+                vfd_df = df_prices[(df_prices["Category"]=="VFD") & (df_prices["Brand"]==brand_name)]
+                v_r = vfd_df.iloc[0] if not vfd_df.empty else df_prices[df_prices["Category"]=="VFD"].iloc[0]
+                bom.append({"Item": f"Variable Frequency Drive ({motor_kw})", "Specification": v_r.get("Specification",f"{motor_kw} Drive"), "Brand": v_r.get("Brand",brand_name), "Qty": 1, "Unit Price": v_r.get("Unit_Price_INR",35000) / ex_rate})
+            else:
+                cnt_df = df_prices[(df_prices["Category"]=="Contactor") & (df_prices["Brand"]==brand_name)]
+                c_r = cnt_df.iloc[0] if not cnt_df.empty else df_prices[df_prices["Category"]=="Contactor"].iloc[0]
+                bom.append({"Item": "Power Contactor Set", "Specification": c_r.get("Specification","32A 3P"), "Brand": c_r.get("Brand",brand_name), "Qty": 2, "Unit Price": c_r.get("Unit_Price_INR",2000) / ex_rate})
 
-        bb_r = df_prices[df_prices["Category"]=="Busbar & Wire"].iloc[0]
-        acc_r = df_prices[df_prices["Category"]=="Accessories"].iloc[0]
-        bom.append({"Item": "Internal Wiring & Busbars", "Specification": bb_r.get("Specification","Copper Harness"), "Brand": bb_r.get("Brand","Polycab"), "Qty": 1, "Unit Price": bb_r.get("Unit_Price_INR",5500) / ex_rate})
-        bom.append({"Item": "Control Accessories & Relays", "Specification": acc_r.get("Specification","Meters, Relays"), "Brand": acc_r.get("Brand","Generic"), "Qty": 1, "Unit Price": acc_r.get("Unit_Price_INR",3500) / ex_rate})
+            if add_choke: bom.append({"Item": "3% AC Line Reactor Choke", "Specification": f"{motor_kw} Harmonic Filter", "Brand": "Elcon", "Qty": 1, "Unit Price": 3800 / ex_rate})
+            if add_heater: bom.append({"Item": "Panel Anti-Condensation Heater", "Specification": "80W + Thermostat", "Brand": "Generic", "Qty": 1, "Unit Price": 1400 / ex_rate})
+            if add_mfm: bom.append({"Item": "Digital Multifunction Meter (MFM)", "Specification": "3-Phase V/A/kW/PF", "Brand": "Rishabh", "Qty": 1, "Unit Price": 2800 / ex_rate})
+            if add_tower: bom.append({"Item": "3-Color Signal LED Tower Lamp", "Specification": "24VDC / 230VAC", "Brand": "Generic", "Qty": 1, "Unit Price": 1200 / ex_rate})
 
-        if freight_price > 0:
-            bom.append({"Item": "Transit Packing & Freight Logistics", "Specification": f_opt.split('(')[0].strip(), "Brand": "Logistics", "Qty": 1, "Unit Price": freight_price})
+            bb_r = df_prices[df_prices["Category"]=="Busbar & Wire"].iloc[0]
+            acc_r = df_prices[df_prices["Category"]=="Accessories"].iloc[0]
+            bom.append({"Item": "Internal Wiring & Busbars", "Specification": bb_r.get("Specification","Copper Harness"), "Brand": bb_r.get("Brand","Polycab"), "Qty": 1, "Unit Price": bb_r.get("Unit_Price_INR",5500) / ex_rate})
+            bom.append({"Item": "Control Accessories & Relays", "Specification": acc_r.get("Specification","Meters, Relays"), "Brand": acc_r.get("Brand","Generic"), "Qty": 1, "Unit Price": acc_r.get("Unit_Price_INR",3500) / ex_rate})
 
-        if st.session_state.get("custom_bom_items"):
-            for item in st.session_state["custom_bom_items"]:
-                bom.append(item.copy())
+            if freight_price > 0:
+                bom.append({"Item": "Transit Packing & Freight Logistics", "Specification": f_opt.split('(')[0].strip(), "Brand": "Logistics", "Qty": 1, "Unit Price": freight_price})
 
-        res_df = pd.DataFrame(bom)
-        res_df["Total Material Cost"] = res_df["Qty"] * res_df["Unit Price"]
-        return res_df
+            if st.session_state.get("custom_bom_items"):
+                for item in st.session_state["custom_bom_items"]:
+                    bom.append(item.copy())
 
-    bom_df = build_bom(preferred_brand)
+            res_df = pd.DataFrame(bom)
+            res_df["Total Material Cost"] = res_df["Qty"] * res_df["Unit Price"]
+            return res_df
+
+        bom_df = build_bom(preferred_brand)
+
+    else:
+        # Full Multi-Feeder Panel / MCC / PCC Board Estimation Mode
+        st.subheader("🏢 Full Multi-Feeder Panel / MCC Board Configurator")
+        mc1, mc2, mc3 = st.columns(3)
+        client_name = mc1.text_input("Client Name", "Maharashtra Water Works Ltd")
+        preferred_brand = mc2.selectbox("Primary Switchgear Brand", ["Schneider", "Siemens", "L&T", "ABB", "Danfoss", "Delta"])
+        panel_type = mc3.text_input("Panel Board Title", "Multi-Feeder Motor Control Center (MCC)")
+
+        mc4, mc5, mc6 = st.columns(3)
+        margin_pct = mc4.slider("Margin (%)", 5, 40, 18)
+        labor_cost_inr = mc5.number_input("Total Assembly, Busbar & Wiring Labor (₹)", value=18500, step=1000)
+        incomer_type = mc6.selectbox("Main Incomer Breaker", ["400A 3P MCCB (36kA)", "630A 4P MCCB (50kA)", "800A 4P Drawout ACB", "1250A 4P Drawout ACB", "1600A 4P Drawout ACB"])
+
+        curr_opt = "INR (₹)"
+        curr_sym = "₹"
+        ex_rate = 1.0
+        labor_cost = labor_cost_inr
+        motor_kw = "Multi-Feeder"
+
+        if "multi_feeder_schedule" not in st.session_state:
+            st.session_state["multi_feeder_schedule"] = [
+                {"Feeder Name": "Feeder 1 - Raw Water Pump", "Starter Type": "VFD Feeder", "Rating": "22 kW", "Brand": preferred_brand, "Qty": 2, "Unit Price (₹)": 48000.0},
+                {"Feeder Name": "Feeder 2 - High Lift Pump", "Starter Type": "Star-Delta", "Rating": "37 kW", "Brand": preferred_brand, "Qty": 2, "Unit Price (₹)": 28000.0},
+                {"Feeder Name": "Feeder 3 - Agitator Motor", "Starter Type": "DOL Starter", "Rating": "7.5 kW", "Brand": preferred_brand, "Qty": 4, "Unit Price (₹)": 8500.0},
+                {"Feeder Name": "Feeder 4 - Auxiliary Distribution", "Starter Type": "Feeder MCCB", "Rating": "100A 3P", "Brand": preferred_brand, "Qty": 3, "Unit Price (₹)": 5200.0}
+            ]
+
+        st.markdown("#### 📝 Edit Feeder Schedule & Quantities")
+        edited_feeders = st.data_editor(st.session_state["multi_feeder_schedule"], num_rows="dynamic", key="mcc_feeder_editor")
+
+        incomer_price_map = {"400A 3P MCCB (36kA)": 22000.0, "630A 4P MCCB (50kA)": 38000.0, "800A 4P Drawout ACB": 95000.0, "1250A 4P Drawout ACB": 135000.0, "1600A 4P Drawout ACB": 175000.0}
+        incomer_cost = incomer_price_map.get(incomer_type, 45000.0)
+
+        bom_list = [
+            {"Item": "Multi-Bay MCC Panel Enclosure Frame", "Specification": "IP55 Floor Mount Dual-Column", "Brand": "Standard Sheet Metal", "Qty": 1, "Unit Price": 45000.0},
+            {"Item": f"Main Incomer Breaker: {incomer_type}", "Specification": incomer_type, "Brand": preferred_brand, "Qty": 1, "Unit Price": incomer_cost}
+        ]
+
+        for f in edited_feeders:
+            bom_list.append({
+                "Item": f"{f.get('Feeder Name','Feeder')} ({f.get('Starter Type','Starter')})",
+                "Specification": f"{f.get('Rating','-')} ({f.get('Starter Type','-')})",
+                "Brand": f.get('Brand', preferred_brand),
+                "Qty": int(f.get('Qty', 1)),
+                "Unit Price": float(f.get('Unit Price (₹)', 10000.0))
+            })
+
+        bom_list.append({"Item": "Main Copper Busbar & Power Distribution Harness", "Specification": "EC Grade Copper Busbars", "Brand": "Polycab", "Qty": 1, "Unit Price": 24000.0})
+        bom_list.append({"Item": "Control Transformers, SMPS & Interlocks", "Specification": "24V DC / 230V AC", "Brand": "Generic", "Qty": 1, "Unit Price": 12500.0})
+
+        bom_df = pd.DataFrame(bom_list)
+        bom_df["Total Material Cost"] = bom_df["Qty"] * bom_df["Unit Price"]
+
     st.dataframe(bom_df)
 
     mat_total = bom_df["Total Material Cost"].sum()
     factory_cost = mat_total + labor_cost
     sell_price = factory_cost * (1 + margin_pct / 100.0)
-    ship_res = calculate_panel_shipping_weight(1200, 800, 400, motor_kw)
+    ship_res = calculate_panel_shipping_weight(2000, 1600, 600, "75 kW" if quote_mode != "⚡ Single Feeder Panel" else motor_kw)
 
     st.divider()
     m1, m2, m3, m4, m5 = st.columns([1, 1, 1, 1.1, 1.3])
@@ -968,14 +1029,15 @@ if menu == "Create Panel Quote":
     m4.metric("Total Factory Cost", f"{curr_sym} {factory_cost:,.2f}")
     m5.metric(f"Commercial Quote ({margin_pct}%)", f"{curr_sym} {sell_price:,.2f}")
 
-    with st.expander("⚡ Instant Multi-Brand Price Comparison Matrix (All Brands)", expanded=False):
-        comp_data = []
-        for b in b_list:
-            b_df = build_bom(b)
-            b_mat = b_df["Total Material Cost"].sum()
-            b_tot = (b_mat + labor_cost) * (1 + margin_pct / 100.0)
-            comp_data.append({"Switchgear Brand": b, f"Raw Material ({curr_sym})": f"{curr_sym} {b_mat:,.2f}", f"Total Quote Price ({curr_sym})": f"{curr_sym} {b_tot:,.2f}", "Difference vs Selected": f"{curr_sym} {b_tot - sell_price:+,.2f}"})
-        st.dataframe(pd.DataFrame(comp_data))
+    if quote_mode == "⚡ Single Feeder Panel":
+        with st.expander("⚡ Instant Multi-Brand Price Comparison Matrix (All Brands)", expanded=False):
+            comp_data = []
+            for b in b_list:
+                b_df = build_bom(b)
+                b_mat = b_df["Total Material Cost"].sum()
+                b_tot = (b_mat + labor_cost) * (1 + margin_pct / 100.0)
+                comp_data.append({"Switchgear Brand": b, f"Raw Material ({curr_sym})": f"{curr_sym} {b_mat:,.2f}", f"Total Quote Price ({curr_sym})": f"{curr_sym} {b_tot:,.2f}", "Difference vs Selected": f"{curr_sym} {b_tot - sell_price:+,.2f}"})
+            st.dataframe(pd.DataFrame(comp_data))
 
     with st.expander("🤝 Client Target Price & Discount Negotiation Analyzer", expanded=False):
         target_price = st.number_input(f"Client's Target Price ({curr_sym})", value=float(round(sell_price * 0.92, -2)), step=100.0 if "INR" not in curr_opt else 1000.0)
@@ -1030,7 +1092,7 @@ if menu == "Create Panel Quote":
     st.subheader("📐 Auto-Generated GA Drawing & Power SLD Diagram")
     tab_ga, tab_sld = st.tabs(["🖼️ Enclosure 2D GA Front View", "⚡ Power Single Line Diagram (SLD)"])
     with tab_ga:
-        st.markdown(generate_ga_drawing_svg(1200, 800, panel_type, preferred_brand), unsafe_allow_html=True)
+        st.markdown(generate_ga_drawing_svg(1200 if quote_mode=="⚡ Single Feeder Panel" else 2000, 800 if quote_mode=="⚡ Single Feeder Panel" else 1600, panel_type, preferred_brand), unsafe_allow_html=True)
     with tab_sld:
         st.markdown(generate_sld_svg(panel_type, motor_kw, preferred_brand), unsafe_allow_html=True)
 
