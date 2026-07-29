@@ -335,6 +335,16 @@ def calculate_harmonics_and_ahf(vfd_kw, vfd_qty, has_choke):
     rec_ahf = next((f"{a}A Active Harmonic Filter (AHF)" for a in standard_ahf if a >= req_ahf_amps), f"{round(req_ahf_amps)}A AHF System") if req_ahf_amps > 15 else "No AHF required (3% Line Reactor sufficient)."
     return {"vfd_current": round(vfd_current, 1), "thdi_pct": thdi_pct, "harmonic_amps": round(harmonic_amps, 1), "req_ahf_amps": round(req_ahf_amps, 1), "rec_ahf": rec_ahf}
 
+def calculate_emc_and_dvdt_filter(vfd_kw, cable_len_m, environment="Industrial (Class C3)"):
+    flc = (vfd_kw * 1000.0) / (1.732 * 415.0 * 0.85 * 0.88)
+    emc_class = "Class C3 (Industrial Environment)" if "Industrial" in environment else "Class C2 (Commercial/Public)"
+    dvdt_rec = "None Required (Safe < 30m)" if cable_len_m <= 30 else ("3% Output dv/dt AC Reactor" if cable_len_m <= 100 else "Sine-Wave Filter (LC Filter)")
+    return {
+        "rec_emc_filter": f"{math.ceil(flc * 1.25)}A RFI/EMC Filter ({emc_class})",
+        "dvdt_rec": dvdt_rec,
+        "cable_spec": "Shielded / Armored Cable (360° EMC Glands)"
+    }
+
 def calculate_smps_and_control_tx(contactor_qty, relay_qty, hmi_present, heater_w, sensor_qty):
     ac_va = (contactor_qty * 15) + (relay_qty * 3) + heater_w + 30
     tx_ratings = [100, 150, 250, 500, 750, 1000, 1500, 2000]
@@ -1500,6 +1510,17 @@ elif menu == "Harmonics & AHF Sizing":
     h2.metric("Est. Harmonic Distortion", f"{h_res['thdi_pct']} % THDi")
     h3.metric("Harmonic Current Spikes", f"{h_res['harmonic_amps']} A")
     h4.metric("Required AHF Capacity", f"{h_res['req_ahf_amps']} A")
+
+    with st.expander("⚡ VFD Motor Cable Length, EMC/RFI Filter & dv/dt Spike Sizer (IEC 61800-3)", expanded=False):
+        e_col1, e_col2 = st.columns(2)
+        v_dist_m = e_col1.number_input("Motor Cable Distance (Meters)", value=45.0, step=5.0)
+        e_env = e_col2.selectbox("Installation Environment", ["Industrial (Class C3)", "Commercial / Public (Class C2)"])
+        emc_res = calculate_emc_and_dvdt_filter(vfd_kw_val, v_dist_m, e_env)
+        em1, em2, em3 = st.columns(3)
+        em1.metric("EMC/RFI Noise Filter", emc_res['rec_emc_filter'])
+        em2.metric("Output dv/dt Spike Protection", emc_res['dvdt_rec'])
+        em3.metric("Motor Wiring Specification", emc_res['cable_spec'])
+        st.info("💡 **IEC 61800-3 EMC Tip:** PWM pulse reflections in motor cables longer than 30m create terminal voltage spikes up to 1600V. Use 3% dv/dt output reactors for 30m-100m runs, and Sine-Wave filters for >100m runs to protect motor winding insulation.")
 
 elif menu == "Panel Thermal & Fan Sizing":
     st.header("🌡️ Thermal Dissipation & Fan Airflow (IEC 60890)")
