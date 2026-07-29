@@ -574,6 +574,61 @@ def calculate_motor_master_chart(kw_val):
         "Al Cable": f"{al} sq.mm"
     }
 
+def get_incomer_default_components(incomer_type, brand="Siemens", ex_rate=1.0):
+    """Returns list of essential required default components for selected incomer rating (630A, 400A, 250A, 100A MCCB / ACB) per switchgear standards."""
+    inc_lower = str(incomer_type).lower()
+    items = []
+    
+    if "630" in inc_lower:
+        items = [
+            {"Item": "Main Incomer 630A 3P MCCB", "Specification": f"630A 3P 50kA Microprocessor/TM ({brand})", "Brand": brand, "Qty": 1, "Unit Price": 28500.0 / ex_rate},
+            {"Item": "Extended Door Rotary Handle Kit (ROM)", "Specification": "630A Door Operating Mechanism + Shaft", "Brand": brand, "Qty": 1, "Unit Price": 3200.0 / ex_rate},
+            {"Item": "Terminal Spreader Links Kit", "Specification": "630A Busbar/Cable Spreader Extension (Set of 3)", "Brand": brand, "Qty": 1, "Unit Price": 2800.0 / ex_rate},
+            {"Item": "Phase Barriers / Insulating Shrouds", "Specification": "630A Inter-Phase Barrier Set", "Brand": brand, "Qty": 1, "Unit Price": 950.0 / ex_rate},
+            {"Item": "Auxiliary & Alarm Contact Block", "Specification": "1NO+1NC Aux + 1 Trip Alarm Switch", "Brand": brand, "Qty": 1, "Unit Price": 1850.0 / ex_rate},
+            {"Item": "Shunt Trip Release Coil", "Specification": "230V AC Remote Emergency Trip Coil", "Brand": brand, "Qty": 1, "Unit Price": 2400.0 / ex_rate},
+            {"Item": "Incomer Metering CT Set", "Specification": "600/5A Class 0.5 Measuring CTs (Set of 3)", "Brand": "Rishabh", "Qty": 1, "Unit Price": 3600.0 / ex_rate},
+            {"Item": "Incomer Control & Meter Protection MCB", "Specification": "6A 3P 10kA C-Curve Control MCB", "Brand": brand, "Qty": 1, "Unit Price": 850.0 / ex_rate}
+        ]
+    elif "400" in inc_lower:
+        items = [
+            {"Item": "Main Incomer 400A 3P MCCB", "Specification": f"400A 3P 36kA/50kA TM/Microprocessor ({brand})", "Brand": brand, "Qty": 1, "Unit Price": 18500.0 / ex_rate},
+            {"Item": "Extended Door Rotary Handle Kit (ROM)", "Specification": "400A Door Operating Mechanism + Shaft", "Brand": brand, "Qty": 1, "Unit Price": 2600.0 / ex_rate},
+            {"Item": "Terminal Spreader Links Kit", "Specification": "400A Cable/Busbar Spreader Extension (Set of 3)", "Brand": brand, "Qty": 1, "Unit Price": 2200.0 / ex_rate},
+            {"Item": "Phase Barriers / Insulating Shrouds", "Specification": "400A Inter-Phase Barrier Set", "Brand": brand, "Qty": 1, "Unit Price": 750.0 / ex_rate},
+            {"Item": "Auxiliary & Alarm Contact Block", "Specification": "1NO+1NC Aux Contact", "Brand": brand, "Qty": 1, "Unit Price": 1450.0 / ex_rate},
+            {"Item": "Shunt Trip Release Coil", "Specification": "230V AC Remote Emergency Trip Coil", "Brand": brand, "Qty": 1, "Unit Price": 2100.0 / ex_rate},
+            {"Item": "Incomer Metering CT Set", "Specification": "400/5A Class 0.5 Measuring CTs (Set of 3)", "Brand": "Rishabh", "Qty": 1, "Unit Price": 2900.0 / ex_rate},
+            {"Item": "Incomer Protection MCB", "Specification": "6A 3P 10kA Control MCB", "Brand": brand, "Qty": 1, "Unit Price": 850.0 / ex_rate}
+        ]
+    elif "250" in inc_lower:
+        items = [
+            {"Item": "Main Incomer 250A 3P MCCB", "Specification": f"250A 3P 36kA Thermal-Magnetic ({brand})", "Brand": brand, "Qty": 1, "Unit Price": 11500.0 / ex_rate},
+            {"Item": "Extended Door Rotary Handle Kit (ROM)", "Specification": "250A Door Operating Mechanism + Shaft", "Brand": brand, "Qty": 1, "Unit Price": 2100.0 / ex_rate},
+            {"Item": "Terminal Spreader Links Kit", "Specification": "250A Terminal Spreader Extension (Set of 3)", "Brand": brand, "Qty": 1, "Unit Price": 1600.0 / ex_rate},
+            {"Item": "Phase Barriers / Insulating Shrouds", "Specification": "250A Inter-Phase Barrier Set", "Brand": brand, "Qty": 1, "Unit Price": 600.0 / ex_rate},
+            {"Item": "Auxiliary Contact Block", "Specification": "1NO+1NC Aux Contact", "Brand": brand, "Qty": 1, "Unit Price": 1200.0 / ex_rate},
+            {"Item": "Incomer Metering CT Set", "Specification": "250/5A Class 0.5 Measuring CTs (Set of 3)", "Brand": "Rishabh", "Qty": 1, "Unit Price": 2400.0 / ex_rate}
+        ]
+    elif "100" in inc_lower or "160" in inc_lower or "125" in inc_lower:
+        items = [
+            {"Item": "Main Incomer 100A 3P MCCB", "Specification": f"100A 3P 25kA Thermal-Magnetic ({brand})", "Brand": brand, "Qty": 1, "Unit Price": 4800.0 / ex_rate},
+            {"Item": "Extended Door Rotary Handle Kit (ROM)", "Specification": "100A Door Operating Mechanism + Shaft", "Brand": brand, "Qty": 1, "Unit Price": 1600.0 / ex_rate},
+            {"Item": "Terminal Spreader Links Kit", "Specification": "100A Terminal Spreader Set (Set of 3)", "Brand": brand, "Qty": 1, "Unit Price": 1100.0 / ex_rate},
+            {"Item": "Phase Barriers / Insulating Shrouds", "Specification": "100A Inter-Phase Barrier Set", "Brand": brand, "Qty": 1, "Unit Price": 450.0 / ex_rate},
+            {"Item": "Auxiliary Contact Block", "Specification": "1NO+1NC Aux Contact", "Brand": brand, "Qty": 1, "Unit Price": 950.0 / ex_rate}
+        ]
+    else: # ACB (800A, 1250A, 1600A, etc.)
+        rating_str = "800A" if "800" in inc_lower else ("1250A" if "1250" in inc_lower else "1600A")
+        acb_base_price = 95000.0 if "800" in inc_lower else (135000.0 if "1250" in inc_lower else 175000.0)
+        items = [
+            {"Item": f"Main Incomer {rating_str} 4P Drawout ACB", "Specification": f"{rating_str} 4P 50kA Microprocessor ETU ({brand})", "Brand": brand, "Qty": 1, "Unit Price": acb_base_price / ex_rate},
+            {"Item": "ACB Motorized Racking & Shunt Trip Release", "Specification": "230V AC Motor Mechanism + Shunt Coil", "Brand": brand, "Qty": 1, "Unit Price": 18500.0 / ex_rate},
+            {"Item": "ACB Auxiliary Contacts & Safety Shutters", "Specification": "4NO+4NC Aux Contacts + Automatic Safety Shutters", "Brand": brand, "Qty": 1, "Unit Price": 6500.0 / ex_rate},
+            {"Item": "Incomer Metering CT Set & Protection MCB", "Specification": f"{rating_str}/5A Class 0.2S CT Set + 6A 3P Control MCB", "Brand": "Rishabh", "Qty": 1, "Unit Price": 6800.0 / ex_rate}
+        ]
+    return items
+
 def query_local_ollama(prompt, format_json=True):
     payload = {"model": "llama3.2", "prompt": prompt, "stream": False}
     if format_json: payload["format"] = "json"
@@ -897,6 +952,8 @@ if menu == "Create Panel Quote":
         p_types = ["VFD Panel", "Star-Delta Control Panel", "APFC Panel", "LT Distribution Panel"]
         m_kw = ["7.5 kW", "15 kW", "22 kW", "37 kW", "55 kW", "75 kW"]
         b_list = ["L&T", "Siemens", "Schneider", "ABB", "Danfoss", "Delta"]
+        inc_ratings = ["Auto-Size by kW", "100A 3P MCCB (25kA)", "250A 3P MCCB (36kA)", "400A 3P MCCB (36kA)", "630A 3P MCCB (50kA)"]
+        
         with c1:
             panel_type = st.selectbox("Panel Type", p_types, index=p_types.index(st.session_state.get("sel_panel", "VFD Panel")) if st.session_state.get("sel_panel") in p_types else 0)
             client_name = st.text_input("Client Name", "Maharashtra Water Works Ltd")
@@ -904,9 +961,10 @@ if menu == "Create Panel Quote":
             motor_kw = st.selectbox("Motor Rating", m_kw, index=m_kw.index(st.session_state.get("sel_kw", "15 kW")) if st.session_state.get("sel_kw") in m_kw else 1)
             preferred_brand = st.selectbox("Switchgear Brand", b_list, index=b_list.index(st.session_state.get("sel_brand", "Schneider")) if st.session_state.get("sel_brand") in b_list else 2)
         with c3:
+            selected_incomer = st.selectbox("Main Incomer Specification", inc_ratings, index=0)
             margin_pct = st.slider("Margin (%)", 5, 40, 18)
-            labor_cost_inr = st.number_input("Wiring & Assembly Labor (₹)", value=4500, step=500)
         with c4:
+            labor_cost_inr = st.number_input("Wiring & Assembly Labor (₹)", value=4500, step=500)
             curr_opt = st.selectbox("Currency", ["INR (₹)", "USD ($)", "EUR (€)", "AED (Dh)"])
             ex_rate = st.number_input("Exchange Rate (1 FX = X INR)", value=83.5 if "USD" in curr_opt else (91.0 if "EUR" in curr_opt else (22.7 if "AED" in curr_opt else 1.0)), step=0.1)
 
@@ -954,9 +1012,17 @@ if menu == "Create Panel Quote":
             bom = []
             enc_r = df_prices[df_prices["Category"]=="Enclosure"].iloc[0] if not df_prices[df_prices["Category"]=="Enclosure"].empty else {}
             bom.append({"Item": "Control Panel Enclosure", "Specification": enc_r.get("Specification","IP54"), "Brand": enc_r.get("Brand","Std"), "Qty": 1, "Unit Price": enc_r.get("Unit_Price_INR",14000) / ex_rate})
-            mccb_df = df_prices[(df_prices["Category"]=="MCCB") & (df_prices["Brand"]==brand_name)]
-            m_r = mccb_df.iloc[0] if not mccb_df.empty else df_prices[df_prices["Category"]=="MCCB"].iloc[0]
-            bom.append({"Item": "Main Incomer MCCB", "Specification": m_r.get("Specification","100A 3P"), "Brand": m_r.get("Brand",brand_name), "Qty": 1, "Unit Price": m_r.get("Unit_Price_INR",4500) / ex_rate})
+            
+            # Determine Incomer Rating & append full required default component kit
+            if "Auto" in selected_incomer:
+                kw_val = float(motor_kw.split()[0]) if motor_kw and motor_kw.split()[0].replace('.','',1).isdigit() else 15.0
+                flc = (kw_val * 1000) / (1.732 * 415 * 0.85 * 0.88)
+                inc_target = "630A" if flc > 250 else ("400A" if flc > 125 else ("250A" if flc > 63 else "100A"))
+            else:
+                inc_target = selected_incomer
+
+            incomer_kit = get_incomer_default_components(inc_target, brand_name, ex_rate)
+            bom.extend(incomer_kit)
             
             if "VFD" in panel_type:
                 vfd_df = df_prices[(df_prices["Category"]=="VFD") & (df_prices["Brand"]==brand_name)]
@@ -1000,7 +1066,7 @@ if menu == "Create Panel Quote":
         mc4, mc5, mc6 = st.columns(3)
         margin_pct = mc4.slider("Margin (%)", 5, 40, 18)
         labor_cost_inr = mc5.number_input("Total Assembly, Busbar & Wiring Labor (₹)", value=18500, step=1000)
-        incomer_type = mc6.selectbox("Main Incomer Breaker", ["400A 3P MCCB (36kA)", "630A 4P MCCB (50kA)", "800A 4P Drawout ACB", "1250A 4P Drawout ACB", "1600A 4P Drawout ACB"])
+        incomer_type = mc6.selectbox("Main Incomer Breaker Rating", ["100A 3P MCCB (25kA)", "250A 3P MCCB (36kA)", "400A 3P MCCB (36kA)", "630A 3P MCCB (50kA)", "800A 4P Drawout ACB", "1250A 4P Drawout ACB", "1600A 4P Drawout ACB"], index=3)
 
         curr_opt = "INR (₹)"
         curr_sym = "₹"
@@ -1019,13 +1085,12 @@ if menu == "Create Panel Quote":
         st.markdown("#### 📝 Edit Feeder Schedule & Quantities")
         edited_feeders = st.data_editor(st.session_state["multi_feeder_schedule"], num_rows="dynamic", key="mcc_feeder_editor")
 
-        incomer_price_map = {"400A 3P MCCB (36kA)": 22000.0, "630A 4P MCCB (50kA)": 38000.0, "800A 4P Drawout ACB": 95000.0, "1250A 4P Drawout ACB": 135000.0, "1600A 4P Drawout ACB": 175000.0}
-        incomer_cost = incomer_price_map.get(incomer_type, 45000.0)
-
         bom_list = [
-            {"Item": "Multi-Bay MCC Panel Enclosure Frame", "Specification": "IP55 Floor Mount Dual-Column", "Brand": "Standard Sheet Metal", "Qty": 1, "Unit Price": 45000.0},
-            {"Item": f"Main Incomer Breaker: {incomer_type}", "Specification": incomer_type, "Brand": preferred_brand, "Qty": 1, "Unit Price": incomer_cost}
+            {"Item": "Multi-Bay MCC Panel Enclosure Frame", "Specification": "IP55 Floor Mount Dual-Column", "Brand": "Standard Sheet Metal", "Qty": 1, "Unit Price": 45000.0}
         ]
+
+        incomer_components = get_incomer_default_components(incomer_type, preferred_brand, ex_rate=1.0)
+        bom_list.extend(incomer_components)
 
         for f in edited_feeders:
             bom_list.append({
