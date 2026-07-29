@@ -1064,7 +1064,12 @@ if menu == "Create Panel Quote":
                 b_df = build_bom(b)
                 b_mat = b_df["Total Material Cost"].sum()
                 b_tot = (b_mat + labor_cost) * (1 + margin_pct / 100.0)
-                comp_data.append({"Switchgear Brand": b, f"Raw Material ({curr_sym})": f"{curr_sym} {b_mat:,.2f}", f"Total Quote Price ({curr_sym})": f"{curr_sym} {b_tot:,.2f}", "Difference vs Selected": f"{curr_sym} {b_tot - sell_price:+,.2f}"})
+                comp_data.append({
+                    "Switchgear Brand": b,
+                    f"Raw Material ({curr_sym})": f"{curr_sym} {b_mat:,.2f}",
+                    f"Total Quote Price ({curr_sym})": f"{curr_sym} {b_tot:,.2f}",
+                    "Difference vs Selected": f"{curr_sym} {b_tot - sell_price:+,.2f}"
+                })
             st.dataframe(pd.DataFrame(comp_data))
 
     with st.expander("🤝 Client Target Price & Discount Negotiation Analyzer", expanded=False):
