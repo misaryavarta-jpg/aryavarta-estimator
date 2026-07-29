@@ -553,6 +553,82 @@ def query_local_ollama(prompt, format_json=True):
             return json.loads(resp) if format_json else resp
     except Exception: return None
 
+def extract_text_from_file(uploaded_file):
+    if uploaded_file is None:
+        return ""
+    fname = uploaded_file.name.lower()
+    text = ""
+    try:
+        if fname.endswith(".txt"):
+            text = uploaded_file.read().decode("utf-8", errors="ignore")
+        elif fname.endswith(".csv"):
+            df = pd.read_csv(uploaded_file)
+            text = df.to_string()
+        elif fname.endswith(".xlsx") or fname.endswith(".xls"):
+            xls = pd.ExcelFile(uploaded_file)
+            sheet_texts = []
+            for sheet_name in xls.sheet_names:
+                df = pd.read_excel(xls, sheet_name=sheet_name)
+                sheet_texts.append(f"--- Sheet: {sheet_name} ---\n" + df.to_string())
+            text = "\n\n".join(sheet_texts)
+        elif fname.endswith(".pdf"):
+            try:
+                import pypdf
+                reader = pypdf.PdfReader(uploaded_file)
+                text = "\n".join([page.extract_text() or "" for page in reader.pages])
+            except Exception:
+                content = uploaded_file.read().decode("latin1", errors="ignore")
+                import re
+                text = " ".join(re.findall(r"\((.*?)\)", content))
+        elif fname.endswith(".docx"):
+            try:
+                import zipfile, xml.etree.ElementTree as ET
+                with zipfile.ZipFile(uploaded_file) as z:
+                    xml_content = z.read("word/document.xml")
+                    tree = ET.fromstring(xml_content)
+                    text = " ".join([elem.text for elem in tree.iter() if elem.text])
+            except Exception:
+                text = uploaded_file.read().decode("utf-8", errors="ignore")
+    except Exception as e:
+        text = f"Error reading file: {str(e)}"
+    return text
+
+def parse_inquiry_text_heuristically(text):
+    text_lower = text.lower()
+    import re
+    
+    kw_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:kw|hp)', text_lower)
+    found_kw = None
+    if kw_match:
+        val = float(kw_match.group(1))
+        if "hp" in kw_match.group(0):
+            val = val * 0.7457
+        std_kws = [7.5, 15, 22, 37, 55, 75]
+        closest = min(std_kws, key=lambda x: abs(x - val))
+        found_kw = f"{closest if isinstance(closest, int) or closest.is_integer() else closest} kW".replace('.0 kW', ' kW')
+
+    found_panel = None
+    if "apfc" in text_lower or "power factor" in text_lower:
+        found_panel = "APFC Panel"
+    elif "star" in text_lower or "delta" in text_lower:
+        found_panel = "Star-Delta Control Panel"
+    elif "lt" in text_lower or "distribution" in text_lower or "pcc" in text_lower:
+        found_panel = "LT Distribution Panel"
+    elif "vfd" in text_lower or "drive" in text_lower or "inverter" in text_lower:
+        found_panel = "VFD Panel"
+
+    found_brand = None
+    for b in ["Siemens", "Schneider", "L&T", "ABB", "Danfoss", "Delta"]:
+        if b.lower() in text_lower:
+            found_brand = b
+            break
+
+    return {
+        "motor_kw": found_kw,
+        "panel_type": found_panel,
+        "preferred_brand": found_brand
+    }
+
 def generate_ga_drawing_svg(h_mm, w_mm, panel_type, brand):
     return f'''<svg width="320" height="380" viewBox="0 0 320 380" xmlns="http://www.w3.org/2000/svg" style="background:#0d1117; border-radius:8px;">
         <rect x="20" y="20" width="280" height="340" rx="6" fill="#1e293b" stroke="#38bdf8" stroke-width="3"/>
@@ -754,17 +830,32 @@ menu = st.sidebar.radio("Navigation", [
 
 if menu == "Create Panel Quote":
     st.header("📋 Panel Estimator, PDF & WhatsApp Proposal")
-    with st.expander("🤖 Auto-Extract Specs from Customer Text", expanded=True):
-        raw_rfq = st.text_area("Paste customer inquiry text:", placeholder="e.g. Need 22kW VFD panel with Siemens switchgear and IP55 enclosure.", height=70)
-        if st.button("⚡ Process Inquiry with Local AI"):
+    with st.expander("🤖 Auto-Extract Specs from Customer Text or Upload Document (PDF, Excel, Word, TXT)", expanded=True):
+        up_col1, up_col2 = st.columns([1, 1])
+        with up_col1:
+            uploaded_inquiry_file = st.file_uploader("📁 Upload Inquiry File (PDF, Excel, Word, TXT, CSV)", type=["pdf", "xlsx", "xls", "csv", "txt", "docx"])
+            if uploaded_inquiry_file is not None:
+                extracted_file_text = extract_text_from_file(uploaded_inquiry_file)
+                st.session_state["raw_inquiry_text"] = extracted_file_text
+                st.success(f"Loaded '{uploaded_inquiry_file.name}' successfully!")
+
+        with up_col2:
+            raw_rfq = st.text_area("Paste or Review customer inquiry text:", value=st.session_state.get("raw_inquiry_text", ""), placeholder="e.g. Need 22kW VFD panel with Siemens switchgear and IP55 enclosure.", height=120)
+
+        if st.button("⚡ Process Inquiry with AI / Smart Extractor"):
             if raw_rfq:
                 parsed = query_local_ollama(f"Extract specs from: '{raw_rfq}'. Keys: 'motor_kw', 'panel_type', 'preferred_brand'")
+                if not parsed:
+                    parsed = parse_inquiry_text_heuristically(raw_rfq)
+                
                 if parsed:
-                    st.session_state["sel_panel"] = parsed.get("panel_type", "VFD Panel")
-                    st.session_state["sel_kw"] = parsed.get("motor_kw", "15 kW")
-                    st.session_state["sel_brand"] = parsed.get("preferred_brand", "Schneider")
-                    st.success("Parsed requirements successfully!")
-                else: st.warning("Ollama AI offline. Select parameters manually.")
+                    if parsed.get("panel_type"): st.session_state["sel_panel"] = parsed["panel_type"]
+                    if parsed.get("motor_kw"): st.session_state["sel_kw"] = parsed["motor_kw"]
+                    if parsed.get("preferred_brand"): st.session_state["sel_brand"] = parsed["brand"] if "brand" in parsed else parsed.get("preferred_brand")
+                    st.success(f"Parsed Specs: Panel: {parsed.get('panel_type', 'N/A')} | Motor: {parsed.get('motor_kw', 'N/A')} | Brand: {parsed.get('preferred_brand', 'N/A')}")
+                    st.rerun()
+                else:
+                    st.warning("Could not automatically identify specifications. Please set parameters manually below.")
 
     c1, c2, c3, c4 = st.columns([3, 3, 3, 3])
     p_types = ["VFD Panel", "Star-Delta Control Panel", "APFC Panel", "LT Distribution Panel"]
