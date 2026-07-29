@@ -1172,7 +1172,7 @@ elif menu == "VFD Dynamic Braking Resistor (DBR) Sizer":
 elif menu == "Cable & Busbar Calculator":
     st.header("📐 Electrical Cable & Busbar Sizing (IS 3961 / IEC 61439)")
     c1, c2, c3 = st.columns(3)
-    kw = c1.number_input("Motor Rating (kW)", 15.0, step=2.5)
+    kw = c1.number_input("Motor Rating (kW)", min_value=0.1, max_value=300.0, value=15.0, step=0.5)
     dist = c1.number_input("Cable Run Distance (Meters)", 30, step=5)
     cond = c2.radio("Material", ["Copper", "Aluminum"])
     p_type = c3.selectbox("Panel Type", ["VFD Panel", "Star-Delta Panel", "DOL Panel"])
