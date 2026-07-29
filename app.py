@@ -1,6 +1,13 @@
-import io, json, math, os, urllib.request, zipfile
+import io
+import json
+import math
+import os
+import re
+import urllib.request
+import zipfile
 import pandas as pd
 import streamlit as st
+
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -514,6 +521,12 @@ def calculate_neutral_busbar_sizing(phase_current_a, non_linear_pct=40.0, harmon
         "rec_breaker": rec_breaker
     }
 
+def calculate_ieee43_ir_temp_correction(r_meas_momega, test_temp_c):
+    k_t = round(0.5 ** ((40.0 - test_temp_c) / 10.0), 3)
+    r_40 = round(r_meas_momega * k_t, 1)
+    status = "PASS ✅ Excellent (> 100 MΩ @ 40°C Baseline)" if r_40 >= 100.0 else ("PASS ✅ Safe Baseline (> 5.0 MΩ @ 40°C Baseline)" if r_40 >= 5.0 else "FAIL ❌ High Moisture / Insulation Breakdown (< 5.0 MΩ)")
+    return {"k_t": k_t, "r_40": r_40, "status": status}
+
 def calculate_soft_starter(motor_kw, connection_type="In-Line"):
     flc = (motor_kw * 1000.0) / (1.732 * 415.0 * 0.85 * 0.88)
     ss_amps = flc if connection_type == "In-Line" else flc / 1.732
@@ -586,11 +599,10 @@ def extract_text_from_file(uploaded_file):
                 text = "\n".join([page.extract_text() or "" for page in reader.pages])
             except Exception:
                 content = uploaded_file.read().decode("latin1", errors="ignore")
-                import re
                 text = " ".join(re.findall(r"\((.*?)\)", content))
         elif fname.endswith(".docx"):
             try:
-                import zipfile, xml.etree.ElementTree as ET
+                import xml.etree.ElementTree as ET
                 with zipfile.ZipFile(uploaded_file) as z:
                     xml_content = z.read("word/document.xml")
                     tree = ET.fromstring(xml_content)
@@ -603,7 +615,6 @@ def extract_text_from_file(uploaded_file):
 
 def parse_inquiry_text_heuristically(text):
     text_lower = text.lower()
-    import re
     
     kw_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:kw|hp)', text_lower)
     found_kw = None
@@ -970,7 +981,6 @@ if menu == "Create Panel Quote":
         bom_df = build_bom(preferred_brand)
 
     else:
-        # Full Multi-Feeder Panel / MCC / PCC Board Estimation Mode
         st.subheader("🏢 Full Multi-Feeder Panel / MCC Board Configurator")
         mc1, mc2, mc3 = st.columns(3)
         client_name = mc1.text_input("Client Name", "Maharashtra Water Works Ltd")
@@ -1645,6 +1655,18 @@ elif menu == "FAT Quality Certificate":
     insp = c2.text_input("QA Inspector", "Sumit"); hv_pass = c2.checkbox("2.5kV HV Test Passed", value=True)
     m1, m2, m3 = st.columns(3)
     r = m1.number_input("R-Earth (MΩ)", 150.0); y = m2.number_input("Y-Earth (MΩ)", 145.0); b = m3.number_input("B-Earth (MΩ)", 160.0)
+    
+    with st.expander("🌡️ IEEE 43 Insulation Resistance (IR / Megger) Temperature Normalization to 40°C Baseline", expanded=False):
+        ir_col1, ir_col2 = st.columns(2)
+        test_t = ir_col1.slider("Site / Testing Ambient Temperature (°C)", 10.0, 55.0, 28.0)
+        r_meas = ir_col2.number_input("Measured Megger IR Reading (MΩ)", value=r, step=10.0)
+        ir_res = calculate_ieee43_ir_temp_correction(r_meas, test_t)
+        ir1, ir2, ir3 = st.columns(3)
+        ir1.metric("IEEE 43 Correction Factor (Kt)", ir_res['k_t'])
+        ir2.metric("Normalized IR @ 40°C Baseline", f"{ir_res['r_40']} MΩ")
+        ir3.metric("IEEE 43 Status", ir_res['status'])
+        st.caption("💡 **IEEE 43 Standard Rule:** $R_{40} = R_{measured} \\times 0.5^{(40 - T)/10}$. Insulation resistance doubles for every 10°C drop in temperature. Normalizing to 40°C prevents false QA test passes at low ambient temperatures.")
+
     if st.button("📄 Generate FAT Certificate PDF"):
         pdf = generate_fat_certificate_pdf(s_no, proj, client, insp, r, y, b, hv_pass)
         st.download_button("📥 Download Official FAT QA Certificate", pdf, f"FAT_{s_no}.pdf", mime="application/pdf")
