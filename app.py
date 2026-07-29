@@ -303,12 +303,20 @@ def calculate_detuned_reactor_and_capacitor(req_kvar, sys_voltage=415.0, detunin
     nameplate_kvar = req_kvar * ((rec_v_rating / v_cap_operating) ** 2)
     reactor_kvar = req_kvar * p
     tuning_freq = round(50.0 / math.sqrt(p), 1)
+    
+    step_kvar = min(req_kvar, 25.0) if req_kvar > 0 else 25.0
+    c_phase = (step_kvar * 1000.0) / (3.0 * 2.0 * math.pi * 50.0 * (sys_voltage ** 2))
+    r_dis_kohms = round((50.0 / (c_phase * 2.463)) / 1000.0, 1) if c_phase > 0 else 120.0
+    p_dis_w = max(5.0, round(((sys_voltage ** 2) / (r_dis_kohms * 1000.0)) * 2.5, 1)) if r_dis_kohms > 0 else 5.0
+
     return {
         "v_cap_op": round(v_cap_operating, 1),
         "rec_v_rating": f"{rec_v_rating}V Heavy Duty Capacitor",
         "nameplate_kvar": round(nameplate_kvar, 1),
         "reactor_kvar": round(reactor_kvar, 1),
-        "tuning_freq": f"{tuning_freq} Hz ({int(detuning_pct)}% Detuned)"
+        "tuning_freq": f"{tuning_freq} Hz ({int(detuning_pct)}% Detuned)",
+        "r_dis_kohms": f"{r_dis_kohms} kΩ",
+        "p_dis_w": f"{p_dis_w}W Wirewound"
     }
 
 def calculate_harmonics_and_ahf(vfd_kw, vfd_qty, has_choke):
@@ -1466,7 +1474,7 @@ elif menu == "APFC Capacitor Sizing & MSEDCL ROI":
         dr2.metric("Capacitor Duty Rating", det_res['rec_v_rating'])
         dr3.metric("Nameplate Rating Needed", f"{det_res['nameplate_kvar']} kVAR")
         dr4.metric("Series Reactor Sizing", f"{det_res['reactor_kvar']} kVAR ({det_res['tuning_freq']})")
-        st.info(r"💡 **IEC 61431 Detuned Reactor Rule:** Operating capacitors in series with a 7% reactor causes terminal voltage inflation ($V_c = \frac{415\text{V}}{1-0.07} = 446.2\text{V}$). Always select $480\text{V}$ or $525\text{V}$ heavy-duty capacitors to prevent dielectric breakdown and premature capacitor failure.")
+        st.info(r"💡 **IEC 61431 & IEC 60831 Safety Rules:** Operating capacitors in series with a 7% reactor causes terminal voltage inflation ($V_c = \frac{415\text{V}}{1-0.07} = 446.2\text{V}$). Always select $480\text{V}$ or $525\text{V}$ heavy-duty capacitors. Each step requires **" + det_res['r_dis_kohms'] + " / " + det_res['p_dis_w'] + r"** discharge resistors to drain residual voltage below 50V within 50 seconds before re-energization.")
 
 elif menu == "Harmonics & AHF Sizing":
     st.header("⚡ VFD Harmonics & Active Filter (AHF) Calculator (IEEE 519)")
