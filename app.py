@@ -17,7 +17,7 @@ st.set_page_config(page_title="Aryavarta Automation - Sales & Engineering Suite"
 
 st.markdown("""
 <style>
-/* Prevent truncation (...) across ALL Streamlit metric sub-elements */
+/* Prevent truncation across metric display blocks */
 div[data-testid="stMetricValue"],
 div[data-testid="stMetricValue"] *,
 div[data-testid="stMetricValue"] > div,
@@ -581,14 +581,14 @@ def get_incomer_default_components(incomer_type, brand="Siemens", ex_rate=1.0):
     
     if "630" in inc_lower:
         items = [
-            {"Item": "Main Incomer 630A 3P MCCB", "Specification": f"630A 3P 50kA Microprocessor/TM ({brand})", "Brand": brand, "Qty": 1, "Unit Price": 28500.0 / ex_rate},
+            {"Item": "Main Incomer 630A 3P MCCB", "Specification": f"630A 3P 50kA Microprocessor/TM ({brand} 3VA/3VM)", "Brand": brand, "Qty": 1, "Unit Price": 28500.0 / ex_rate},
             {"Item": "Extended Door Rotary Handle Kit (ROM)", "Specification": "630A Door Operating Mechanism + Shaft", "Brand": brand, "Qty": 1, "Unit Price": 3200.0 / ex_rate},
             {"Item": "Terminal Spreader Links Kit", "Specification": "630A Busbar/Cable Spreader Extension (Set of 3)", "Brand": brand, "Qty": 1, "Unit Price": 2800.0 / ex_rate},
             {"Item": "Phase Barriers / Insulating Shrouds", "Specification": "630A Inter-Phase Barrier Set", "Brand": brand, "Qty": 1, "Unit Price": 950.0 / ex_rate},
             {"Item": "Auxiliary & Alarm Contact Block", "Specification": "1NO+1NC Aux + 1 Trip Alarm Switch", "Brand": brand, "Qty": 1, "Unit Price": 1850.0 / ex_rate},
             {"Item": "Shunt Trip Release Coil", "Specification": "230V AC Remote Emergency Trip Coil", "Brand": brand, "Qty": 1, "Unit Price": 2400.0 / ex_rate},
             {"Item": "Incomer Metering CT Set", "Specification": "600/5A Class 0.5 Measuring CTs (Set of 3)", "Brand": "Rishabh", "Qty": 1, "Unit Price": 3600.0 / ex_rate},
-            {"Item": "Incomer Control & Meter Protection MCB", "Specification": "6A 3P 10kA C-Curve Control MCB", "Brand": brand, "Qty": 1, "Unit Price": 850.0 / ex_rate}
+            {"Item": "Incomer Control & Meter Protection MCB", "Specification": "6A 3P 10kA C-Curve Control MCB (Siemens 5SY)", "Brand": brand, "Qty": 1, "Unit Price": 850.0 / ex_rate}
         ]
     elif "400" in inc_lower:
         items = [
@@ -614,7 +614,7 @@ def get_incomer_default_components(incomer_type, brand="Siemens", ex_rate=1.0):
         items = [
             {"Item": "Main Incomer 100A 3P MCCB", "Specification": f"100A 3P 25kA Thermal-Magnetic ({brand})", "Brand": brand, "Qty": 1, "Unit Price": 4800.0 / ex_rate},
             {"Item": "Extended Door Rotary Handle Kit (ROM)", "Specification": "100A Door Operating Mechanism + Shaft", "Brand": brand, "Qty": 1, "Unit Price": 1600.0 / ex_rate},
-            {"Item": "Terminal Spreader Links Kit", "Specification": "100A Terminal Spreader Set (Set of 3)", "Brand": brand, "Qty": 1, "Unit Price": 1100.0 / ex_rate},
+            {"Item": "Terminal Spreader Links Kit", "Specification": "100A Terminal Spreader Set (Set of 3)", "Brand": "Siemens", "Qty": 1, "Unit Price": 1100.0 / ex_rate},
             {"Item": "Phase Barriers / Insulating Shrouds", "Specification": "100A Inter-Phase Barrier Set", "Brand": brand, "Qty": 1, "Unit Price": 450.0 / ex_rate},
             {"Item": "Auxiliary Contact Block", "Specification": "1NO+1NC Aux Contact", "Brand": brand, "Qty": 1, "Unit Price": 950.0 / ex_rate}
         ]
@@ -622,12 +622,62 @@ def get_incomer_default_components(incomer_type, brand="Siemens", ex_rate=1.0):
         rating_str = "800A" if "800" in inc_lower else ("1250A" if "1250" in inc_lower else "1600A")
         acb_base_price = 95000.0 if "800" in inc_lower else (135000.0 if "1250" in inc_lower else 175000.0)
         items = [
-            {"Item": f"Main Incomer {rating_str} 4P Drawout ACB", "Specification": f"{rating_str} 4P 50kA Microprocessor ETU ({brand})", "Brand": brand, "Qty": 1, "Unit Price": acb_base_price / ex_rate},
+            {"Item": f"Main Incomer {rating_str} 4P Drawout ACB", "Specification": f"{rating_str} 4P 50kA Microprocessor ETU ({brand} 3WA/3WL)", "Brand": brand, "Qty": 1, "Unit Price": acb_base_price / ex_rate},
             {"Item": "ACB Motorized Racking & Shunt Trip Release", "Specification": "230V AC Motor Mechanism + Shunt Coil", "Brand": brand, "Qty": 1, "Unit Price": 18500.0 / ex_rate},
             {"Item": "ACB Auxiliary Contacts & Safety Shutters", "Specification": "4NO+4NC Aux Contacts + Automatic Safety Shutters", "Brand": brand, "Qty": 1, "Unit Price": 6500.0 / ex_rate},
             {"Item": "Incomer Metering CT Set & Protection MCB", "Specification": f"{rating_str}/5A Class 0.2S CT Set + 6A 3P Control MCB", "Brand": "Rishabh", "Qty": 1, "Unit Price": 6800.0 / ex_rate}
         ]
     return items
+
+def get_feeder_subcomponents(feeder_type, rating_kw_str, brand="Siemens", ex_rate=1.0):
+    """Returns complete list of Siemens default sub-components for Star-Delta, DOL, VFD, Soft Starter, and APFC feeders."""
+    sub_items = []
+    kw_val = float(rating_kw_str.split()[0]) if rating_kw_str and rating_kw_str.split()[0].replace('.','',1).isdigit() else 15.0
+    flc = (kw_val * 1000) / (1.732 * 415 * 0.85 * 0.88)
+    
+    if "Star-Delta" in feeder_type:
+        i_phase = flc / 1.732
+        main_a = math.ceil(i_phase * 1.15)
+        star_a = math.ceil((flc / 3.0) * 1.15)
+        mccb_a = max(32, math.ceil(flc * 1.5 / 10.0) * 10)
+        sub_items = [
+            {"Item": f"Star-Delta Incomer MPCB / MCCB ({mccb_a}A)", "Specification": f"{mccb_a}A 3P 25kA/36kA Motor Duty Breaker ({brand} 3RV/3VM)", "Brand": brand, "Qty": 1, "Unit Price": (3500 + mccb_a * 18) / ex_rate},
+            {"Item": f"Main Power Contactor ({main_a}A AC-3)", "Specification": f"{main_a}A 3P 230V AC Coil Power Contactor ({brand} 3RT)", "Brand": brand, "Qty": 1, "Unit Price": (1800 + main_a * 25) / ex_rate},
+            {"Item": f"Delta Power Contactor ({main_a}A AC-3)", "Specification": f"{main_a}A 3P 230V AC Coil Power Contactor ({brand} 3RT)", "Brand": brand, "Qty": 1, "Unit Price": (1800 + main_a * 25) / ex_rate},
+            {"Item": f"Star Power Contactor ({star_a}A AC-3)", "Specification": f"{star_a}A 3P 230V AC Coil Power Contactor ({brand} 3RT)", "Brand": brand, "Qty": 1, "Unit Price": (1200 + star_a * 22) / ex_rate},
+            {"Item": "Mechanical & Electrical Interlock Block Set", "Specification": "Star-Delta Contactor Interlock Kit", "Brand": brand, "Qty": 1, "Unit Price": 1250.0 / ex_rate},
+            {"Item": "Electronic Star-Delta Timer Relay", "Specification": "0.1s - 30s 230VAC Electronic Timer ({brand} 3RP)", "Brand": brand, "Qty": 1, "Unit Price": 2200.0 / ex_rate},
+            {"Item": "Thermal Overload Relay (TOR)", "Specification": f"Class 10 Adjustable Bimetallic Relay ({brand} 3RU)", "Brand": brand, "Qty": 1, "Unit Price": 2400.0 / ex_rate},
+            {"Item": "Door Start/Stop Buttons & Signal LEDs", "Specification": "Flush Pushbuttons + Red/Green/Yellow LEDs ({brand} 3SB)", "Brand": brand, "Qty": 1, "Unit Price": 1400.0 / ex_rate}
+        ]
+    elif "DOL" in feeder_type:
+        dol_cont_a = math.ceil(flc * 1.15)
+        sub_items = [
+            {"Item": f"DOL Incomer MPCB ({dol_cont_a}A)", "Specification": f"Adjustable Thermal-Magnetic MPCB ({brand} 3RV)", "Brand": brand, "Qty": 1, "Unit Price": 3200.0 / ex_rate},
+            {"Item": f"DOL Power Contactor ({dol_cont_a}A AC-3)", "Specification": f"{dol_cont_a}A 3P Power Contactor ({brand} 3RT)", "Brand": brand, "Qty": 1, "Unit Price": (1400 + dol_cont_a * 20) / ex_rate},
+            {"Item": "Auxiliary Contact Block", "Specification": "1NO+1NC Front Snap Auxiliary Block", "Brand": brand, "Qty": 1, "Unit Price": 650.0 / ex_rate},
+            {"Item": "Start/Stop Pushbuttons & Status Lamps", "Specification": "Green Start, Red Stop, Amber Trip LED ({brand} 3SB)", "Brand": brand, "Qty": 1, "Unit Price": 1100.0 / ex_rate}
+        ]
+    elif "VFD" in feeder_type:
+        mccb_a = max(32, math.ceil(flc * 1.25 / 10.0) * 10)
+        sub_items = [
+            {"Item": f"VFD Power Unit ({rating_kw_str})", "Specification": f"{rating_kw_str} 415V Heavy Duty Drive ({brand} Sinamics G120C/V20)", "Brand": brand, "Qty": 1, "Unit Price": (22000 + kw_val * 950) / ex_rate},
+            {"Item": f"VFD Incomer MCCB / MPCB ({mccb_a}A)", "Specification": f"{mccb_a}A 3P 25kA Incomer Breaker ({brand} 3VM)", "Brand": brand, "Qty": 1, "Unit Price": (3200 + mccb_a * 15) / ex_rate},
+            {"Item": "Semiconductor Fast-Acting Fuses (aR)", "Specification": f"Fast Semiconductor Fuse Set ({brand} 3NE)", "Brand": brand, "Qty": 3, "Unit Price": 1800.0 / ex_rate},
+            {"Item": "3% Input AC Line Reactor Choke", "Specification": "Harmonic Mitigation Reactor", "Brand": "Elcon", "Qty": 1, "Unit Price": (2500 + kw_val * 120) / ex_rate},
+            {"Item": "Line Isolation Power Contactor", "Specification": f"{math.ceil(flc)}A 3P Line Contactor ({brand} 3RT)", "Brand": brand, "Qty": 1, "Unit Price": (1600 + flc * 20) / ex_rate},
+            {"Item": "Door Keypad BOP & Potentiometer Unit", "Specification": "Display BOP + Speed Adjuster Set", "Brand": brand, "Qty": 1, "Unit Price": 3200.0 / ex_rate},
+            {"Item": "Panel Cooling Louver Fan Unit", "Specification": "Filter Fan Unit (> 250 m³/h)", "Brand": "Generic", "Qty": 1, "Unit Price": 2800.0 / ex_rate}
+        ]
+    elif "Soft Starter" in feeder_type:
+        ss_a = math.ceil(flc)
+        sub_items = [
+            {"Item": f"Soft Starter Unit ({ss_a}A)", "Specification": f"{ss_a}A 3-Phase Soft Starter ({brand} 3RW)", "Brand": brand, "Qty": 1, "Unit Price": (18000 + kw_val * 650) / ex_rate},
+            {"Item": "Incomer Motor-Duty MCCB", "Specification": f"{max(32, math.ceil(flc*1.25/10.0)*10)}A 3P MCCB ({brand} 3VM)", "Brand": brand, "Qty": 1, "Unit Price": 4800.0 / ex_rate},
+            {"Item": "By-Pass Contactor (AC-1/AC-3)", "Specification": f"{ss_a}A AC-3 Power Contactor ({brand} 3RT)", "Brand": brand, "Qty": 1, "Unit Price": (2200 + ss_a * 22) / ex_rate},
+            {"Item": "Fast Semiconductor Fuses (aR)", "Specification": "Semiconductor Protection Fuse Set ({brand} 3NE)", "Brand": brand, "Qty": 3, "Unit Price": 1600.0 / ex_rate}
+        ]
+    return sub_items
 
 def query_local_ollama(prompt, format_json=True):
     payload = {"model": "llama3.2", "prompt": prompt, "stream": False}
@@ -733,7 +783,7 @@ def generate_ga_drawing_svg(h_mm, w_mm, panel_type, brand):
         <circle cx="200" cy="145" r="10" fill="#eab308"/>
         <rect x="100" y="180" width="120" height="100" rx="4" fill="#1e293b" stroke="#0ea5e9" stroke-width="2"/>
         <text x="160" y="215" fill="#0ea5e9" font-family="monospace" font-size="15" font-weight="bold" text-anchor="middle">50.00 Hz</text>
-        <text x="160" y="238" fill="#94a3b8" font-family="sans-serif" font-size="9" text-anchor="middle">{brand} Drive</text>
+        <text x="160" y="238" fill="#94a3b8" font-family="sans-serif" font-size="9" text-anchor="middle">{brand} Switchgear</text>
         <rect x="125" y="255" width="26" height="15" rx="2" fill="#22c55e"/>
         <rect x="165" y="255" width="26" height="15" rx="2" fill="#ef4444"/>
         <rect x="70" y="305" width="180" height="28" rx="2" fill="#f8fafc" stroke="#64748b"/>
@@ -928,7 +978,7 @@ if menu == "Create Panel Quote":
                 st.success(f"Loaded {len(uploaded_inquiry_files)} file(s) successfully!")
 
         with up_col2:
-            raw_rfq = st.text_area("Paste or Review customer inquiry text:", value=st.session_state.get("raw_inquiry_text", ""), placeholder="e.g. Need complete MCC panel with 2x 22kW VFD, 3x 37kW Star-Delta, 4x 7.5kW DOL feeders with Schneider switchgear.", height=120)
+            raw_rfq = st.text_area("Paste or Review customer inquiry text:", value=st.session_state.get("raw_inquiry_text", ""), placeholder="e.g. Need complete MCC panel with 2x 22kW VFD, 3x 37kW Star-Delta, 4x 7.5kW DOL feeders with Siemens switchgear.", height=120)
 
         if st.button("⚡ Process Inquiry with AI / Smart Extractor"):
             if raw_rfq:
@@ -951,7 +1001,7 @@ if menu == "Create Panel Quote":
         c1, c2, c3, c4 = st.columns([3, 3, 3, 3])
         p_types = ["VFD Panel", "Star-Delta Control Panel", "APFC Panel", "LT Distribution Panel"]
         m_kw = ["7.5 kW", "15 kW", "22 kW", "37 kW", "55 kW", "75 kW"]
-        b_list = ["L&T", "Siemens", "Schneider", "ABB", "Danfoss", "Delta"]
+        b_list = ["Siemens", "Schneider", "L&T", "ABB", "Danfoss", "Delta"]
         inc_ratings = ["Auto-Size by kW", "100A 3P MCCB (25kA)", "250A 3P MCCB (36kA)", "400A 3P MCCB (36kA)", "630A 3P MCCB (50kA)"]
         
         with c1:
@@ -959,7 +1009,7 @@ if menu == "Create Panel Quote":
             client_name = st.text_input("Client Name", "Maharashtra Water Works Ltd")
         with c2:
             motor_kw = st.selectbox("Motor Rating", m_kw, index=m_kw.index(st.session_state.get("sel_kw", "15 kW")) if st.session_state.get("sel_kw") in m_kw else 1)
-            preferred_brand = st.selectbox("Switchgear Brand", b_list, index=b_list.index(st.session_state.get("sel_brand", "Schneider")) if st.session_state.get("sel_brand") in b_list else 2)
+            preferred_brand = st.selectbox("Switchgear Brand", b_list, index=b_list.index(st.session_state.get("sel_brand", "Siemens")) if st.session_state.get("sel_brand") in b_list else 0)
         with c3:
             selected_incomer = st.selectbox("Main Incomer Specification", inc_ratings, index=0)
             margin_pct = st.slider("Margin (%)", 5, 40, 18)
@@ -1011,9 +1061,9 @@ if menu == "Create Panel Quote":
         def build_bom(brand_name):
             bom = []
             enc_r = df_prices[df_prices["Category"]=="Enclosure"].iloc[0] if not df_prices[df_prices["Category"]=="Enclosure"].empty else {}
-            bom.append({"Item": "Control Panel Enclosure", "Specification": enc_r.get("Specification","IP54"), "Brand": enc_r.get("Brand","Std"), "Qty": 1, "Unit Price": enc_r.get("Unit_Price_INR",14000) / ex_rate})
+            bom.append({"Item": "Control Panel Enclosure", "Specification": enc_r.get("Specification","IP54 Floor Mount"), "Brand": enc_r.get("Brand","Standard"), "Qty": 1, "Unit Price": enc_r.get("Unit_Price_INR",14000) / ex_rate})
             
-            # Determine Incomer Rating & append full required default component kit
+            # Determine Incomer Rating & append full required default Siemens accessory kit
             if "Auto" in selected_incomer:
                 kw_val = float(motor_kw.split()[0]) if motor_kw and motor_kw.split()[0].replace('.','',1).isdigit() else 15.0
                 flc = (kw_val * 1000) / (1.732 * 415 * 0.85 * 0.88)
@@ -1024,24 +1074,23 @@ if menu == "Create Panel Quote":
             incomer_kit = get_incomer_default_components(inc_target, brand_name, ex_rate)
             bom.extend(incomer_kit)
             
-            if "VFD" in panel_type:
-                vfd_df = df_prices[(df_prices["Category"]=="VFD") & (df_prices["Brand"]==brand_name)]
-                v_r = vfd_df.iloc[0] if not vfd_df.empty else df_prices[df_prices["Category"]=="VFD"].iloc[0]
-                bom.append({"Item": f"Variable Frequency Drive ({motor_kw})", "Specification": v_r.get("Specification",f"{motor_kw} Drive"), "Brand": v_r.get("Brand",brand_name), "Qty": 1, "Unit Price": v_r.get("Unit_Price_INR",35000) / ex_rate})
-            else:
-                cnt_df = df_prices[(df_prices["Category"]=="Contactor") & (df_prices["Brand"]==brand_name)]
-                c_r = cnt_df.iloc[0] if not cnt_df.empty else df_prices[df_prices["Category"]=="Contactor"].iloc[0]
-                bom.append({"Item": "Power Contactor Set", "Specification": c_r.get("Specification","32A 3P"), "Brand": c_r.get("Brand",brand_name), "Qty": 2, "Unit Price": c_r.get("Unit_Price_INR",2000) / ex_rate})
+            # Append feeder specific sub-components breakdown
+            feeder_subcomponents = get_feeder_subcomponents(panel_type, motor_kw, brand_name, ex_rate)
+            bom.extend(feeder_subcomponents)
 
-            if add_choke: bom.append({"Item": "3% AC Line Reactor Choke", "Specification": f"{motor_kw} Harmonic Filter", "Brand": "Elcon", "Qty": 1, "Unit Price": 3800 / ex_rate})
-            if add_heater: bom.append({"Item": "Panel Anti-Condensation Heater", "Specification": "80W + Thermostat", "Brand": "Generic", "Qty": 1, "Unit Price": 1400 / ex_rate})
-            if add_mfm: bom.append({"Item": "Digital Multifunction Meter (MFM)", "Specification": "3-Phase V/A/kW/PF", "Brand": "Rishabh", "Qty": 1, "Unit Price": 2800 / ex_rate})
-            if add_tower: bom.append({"Item": "3-Color Signal LED Tower Lamp", "Specification": "24VDC / 230VAC", "Brand": "Generic", "Qty": 1, "Unit Price": 1200 / ex_rate})
+            if add_choke and not any("Line Reactor" in item["Item"] for item in bom): 
+                bom.append({"Item": "3% AC Line Reactor Choke", "Specification": f"{motor_kw} Harmonic Filter", "Brand": "Elcon", "Qty": 1, "Unit Price": 3800 / ex_rate})
+            if add_heater: 
+                bom.append({"Item": "Panel Anti-Condensation Heater", "Specification": "80W + Thermostat", "Brand": "Generic", "Qty": 1, "Unit Price": 1400 / ex_rate})
+            if add_mfm and not any("Metering CT" in item["Item"] for item in bom): 
+                bom.append({"Item": "Digital Multifunction Meter (MFM)", "Specification": "3-Phase V/A/kW/PF", "Brand": "Rishabh", "Qty": 1, "Unit Price": 2800 / ex_rate})
+            if add_tower: 
+                bom.append({"Item": "3-Color Signal LED Tower Lamp", "Specification": "24VDC / 230VAC", "Brand": "Generic", "Qty": 1, "Unit Price": 1200 / ex_rate})
 
             bb_r = df_prices[df_prices["Category"]=="Busbar & Wire"].iloc[0]
             acc_r = df_prices[df_prices["Category"]=="Accessories"].iloc[0]
-            bom.append({"Item": "Internal Wiring & Busbars", "Specification": bb_r.get("Specification","Copper Harness"), "Brand": bb_r.get("Brand","Polycab"), "Qty": 1, "Unit Price": bb_r.get("Unit_Price_INR",5500) / ex_rate})
-            bom.append({"Item": "Control Accessories & Relays", "Specification": acc_r.get("Specification","Meters, Relays"), "Brand": acc_r.get("Brand","Generic"), "Qty": 1, "Unit Price": acc_r.get("Unit_Price_INR",3500) / ex_rate})
+            bom.append({"Item": "Internal Wiring Harness & Copper Busbars", "Specification": bb_r.get("Specification","Copper Harness"), "Brand": bb_r.get("Brand","Polycab"), "Qty": 1, "Unit Price": bb_r.get("Unit_Price_INR",5500) / ex_rate})
+            bom.append({"Item": "Control Accessories & Relays", "Specification": acc_r.get("Specification","Relays & Terminal Blocks"), "Brand": acc_r.get("Brand","Generic"), "Qty": 1, "Unit Price": acc_r.get("Unit_Price_INR",3500) / ex_rate})
 
             if freight_price > 0:
                 bom.append({"Item": "Transit Packing & Freight Logistics", "Specification": f_opt.split('(')[0].strip(), "Brand": "Logistics", "Qty": 1, "Unit Price": freight_price})
@@ -1060,7 +1109,7 @@ if menu == "Create Panel Quote":
         st.subheader("🏢 Full Multi-Feeder Panel / MCC Board Configurator")
         mc1, mc2, mc3 = st.columns(3)
         client_name = mc1.text_input("Client Name", "Maharashtra Water Works Ltd")
-        preferred_brand = mc2.selectbox("Primary Switchgear Brand", ["Schneider", "Siemens", "L&T", "ABB", "Danfoss", "Delta"])
+        preferred_brand = mc2.selectbox("Primary Switchgear Brand", ["Siemens", "Schneider", "L&T", "ABB", "Danfoss", "Delta"])
         panel_type = mc3.text_input("Panel Board Title", "Multi-Feeder Motor Control Center (MCC)")
 
         mc4, mc5, mc6 = st.columns(3)
@@ -1093,13 +1142,25 @@ if menu == "Create Panel Quote":
         bom_list.extend(incomer_components)
 
         for f in edited_feeders:
-            bom_list.append({
-                "Item": f"{f.get('Feeder Name','Feeder')} ({f.get('Starter Type','Starter')})",
-                "Specification": f"{f.get('Rating','-')} ({f.get('Starter Type','-')})",
-                "Brand": f.get('Brand', preferred_brand),
-                "Qty": int(f.get('Qty', 1)),
-                "Unit Price": float(f.get('Unit Price (₹)', 10000.0))
-            })
+            f_type = f.get('Starter Type','Starter')
+            f_rating = f.get('Rating','15 kW')
+            f_brand = f.get('Brand', preferred_brand)
+            f_qty = int(f.get('Qty', 1))
+            
+            feeder_sub_items = get_feeder_subcomponents(f_type, f_rating, f_brand, ex_rate=1.0)
+            if feeder_sub_items:
+                for sub in feeder_sub_items:
+                    sub_copy = sub.copy()
+                    sub_copy["Qty"] = sub_copy["Qty"] * f_qty
+                    bom_list.append(sub_copy)
+            else:
+                bom_list.append({
+                    "Item": f"{f.get('Feeder Name','Feeder')} ({f_type})",
+                    "Specification": f"{f_rating} ({f_type})",
+                    "Brand": f_brand,
+                    "Qty": f_qty,
+                    "Unit Price": float(f.get('Unit Price (₹)', 10000.0))
+                })
 
         bom_list.append({"Item": "Main Copper Busbar & Power Distribution Harness", "Specification": "EC Grade Copper Busbars", "Brand": "Polycab", "Qty": 1, "Unit Price": 24000.0})
         bom_list.append({"Item": "Control Transformers, SMPS & Interlocks", "Specification": "24V DC / 230V AC", "Brand": "Generic", "Qty": 1, "Unit Price": 12500.0})
@@ -1769,7 +1830,7 @@ elif menu == "Dispatch Delivery Challan (DC)":
     with c1:
         dc_no = st.text_input("Delivery Challan No.", f"AA/DC/{os.urandom(2).hex().upper()}")
         c_name = st.text_input("Consignee / Client Name", "Maharashtra Water Works Ltd")
-        p_scope = st.text_input("Panel Scope Description", "22 kW VFD Control Panel (Schneider Drive)")
+        p_scope = st.text_input("Panel Scope Description", "22 kW VFD Control Panel (Siemens Drive)")
     with c2:
         v_no = st.text_input("Vehicle / LR Number", "MH 14 HG 4821")
         g_wt = st.number_input("Gross Weight (kg)", value=185.0, step=5.0)
@@ -1781,8 +1842,8 @@ elif menu == "Dispatch Delivery Challan (DC)":
 
 elif menu == "VFD Diagnostic Assistant":
     st.header("🛠️ Field VFD Diagnostic Assistant")
-    brand = st.selectbox("VFD Brand", ["Danfoss", "Schneider", "ABB", "Delta", "Siemens"])
-    code = st.text_input("Fault Code", placeholder="e.g. W013, Overcurrent, F0001")
+    brand = st.selectbox("VFD Brand", ["Siemens", "Danfoss", "Schneider", "ABB", "Delta"])
+    code = st.text_input("Fault Code", placeholder="e.g. F0001, W013, Overcurrent, F0002")
     if st.button("🔍 Diagnose Fault"):
         if code:
             ans = query_local_ollama(f"Provide quick 4-step diagnostic checklist for {brand} VFD showing Fault: '{code}'.", format_json=False)
