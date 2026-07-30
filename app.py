@@ -8,7 +8,7 @@ import zipfile
 import pandas as pd
 import streamlit as st
 
-# Optional PDF & DOCX text extraction
+# Optional PDF & DOCX text extraction dependencies
 try:
     import pypdf
 except ImportError:
@@ -752,7 +752,6 @@ def extract_text_from_file(uploaded_file):
 
 def parse_inquiry_text_heuristically(text):
     text_lower = text.lower()
-    
     kw_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:kw|hp)', text_lower)
     found_kw = None
     if kw_match:
@@ -830,6 +829,37 @@ def generate_sld_svg(panel_type, kw_str, brand):
         <circle cx="225" cy="208" r="16" fill="#1e293b" stroke="#e2e8f0" stroke-width="2"/>
         <text x="225" y="213" fill="#f8fafc" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="middle">M 3~</text>
     </svg>'''
+
+def generate_excel_proposal(client_name, panel_type, motor_kw, preferred_brand, curr_opt, sell_price, curr_sym, bom_df):
+    """Generates clean, uncorrupted multi-sheet Excel proposal workbook."""
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as w:
+        summary_df = pd.DataFrame([
+            {"Field": "Client Name", "Value": str(client_name)},
+            {"Field": "Quote Ref", "Value": f"AA/QT/{os.urandom(2).hex().upper()}"},
+            {"Field": "Scope of Supply", "Value": f"{panel_type} ({motor_kw})"},
+            {"Field": "Switchgear Brand", "Value": str(preferred_brand)},
+            {"Field": "Currency", "Value": str(curr_opt)},
+            {"Field": f"Total Basic Price ({curr_sym})", "Value": f"{curr_sym} {sell_price:,.2f}"},
+            {"Field": "GST / Import Taxes", "Value": "18% Extra as applicable"},
+            {"Field": "Delivery Schedule", "Value": "2-3 Weeks Ex-Factory Chikhali, Pune"},
+            {"Field": "Payment Terms", "Value": "50% Advance, 50% Before Dispatch"}
+        ])
+        summary_df.to_excel(w, index=False, sheet_name="Commercial Offer")
+        
+        export_bom = bom_df.copy()
+        export_bom.to_excel(w, index=False, sheet_name="Bill of Materials")
+        
+        tds_df = pd.DataFrame([
+            {"Parameter": "Operating Voltage", "Specification": "415V AC ± 10%, 3Ø 50Hz"},
+            {"Parameter": "Design Standard", "Specification": "IEC 61439-1 / IS 8623"},
+            {"Parameter": "Enclosure Rating", "Specification": "IP54 / IP55 Sheet Metal"},
+            {"Parameter": "Switchgear Brand", "Specification": str(preferred_brand)},
+            {"Parameter": "Short Circuit Fault Level", "Specification": "25kA for 1s"}
+        ])
+        tds_df.to_excel(w, index=False, sheet_name="Technical Specs")
+    buf.seek(0)
+    return buf.getvalue()
 
 def generate_pdf_quotation(client_name, panel_type, motor_kw, brand, bom_df, labor, margin, total_price, curr_sym="₹"):
     buf = io.BytesIO()
@@ -1412,44 +1442,26 @@ if menu == "Create Panel Quote":
         d3.metric("Discount Offered", f"{discount_pct}%")
 
     b1, b2, b3, b4, b5 = st.columns(5)
-    buf_xl = io.BytesIO()
-    with pd.ExcelWriter(buf_xl, engine="openpyxl") as w:
-        summary_df = pd.DataFrame([
-            {"Field": "Client Name", "Value": client_name},
-            {"Field": "Quote Ref", "Value": f"AA/QT/{os.urandom(2).hex().upper()}"},
-            {"Field": "Scope of Supply", "Value": f"{panel_type} ({motor_kw})"},
-            {"Field": "Switchgear Brand", "Value": preferred_brand},
-            {"Field": "Currency", "Value": curr_opt},
-            {"Field": f"Total Basic Price ({curr_sym})", "Value": f"{curr_sym} {sell_price:,.2f}"},
-            {"Field": "GST / Import Taxes", "Value": "18% Extra as applicable"},
-            {"Field": "Delivery Schedule", "Value": "2-3 Weeks Ex-Factory Chikhali, Pune"},
-            {"Field": "Payment Terms", "Value": "50% Advance, 50% Before Dispatch"}
-        ])
-        summary_df.to_excel(w, index=False, sheet_name="Commercial Offer")
-        bom_df.to_excel(w, index=False, sheet_name="Bill of Materials")
-        tds_df = pd.DataFrame([
-            {"Parameter": "Operating Voltage", "Specification": "415V AC ± 10%, 3Ø 50Hz"},
-            {"Parameter": "Design Standard", "Specification": "IEC 61439-1 / IS 8623"},
-            {"Parameter": "Enclosure Rating", "Specification": "IP54 / IP55 Sheet Metal"},
-            {"Parameter": "Switchgear Brand", "Specification": preferred_brand},
-            {"Parameter": "Short Circuit Fault Level", "Specification": "25kA for 1s"}
-        ])
-        tds_df.to_excel(w, index=False, sheet_name="Technical Specs")
-    b1.download_button("📊 Excel Proposal", buf_xl.getvalue(), f"Proposal_{client_name}.xlsx")
+    
+    excel_proposal_bytes = generate_excel_proposal(client_name, panel_type, motor_kw, preferred_brand, curr_opt, sell_price, curr_sym, bom_df)
+    b1.download_button("📊 Excel Proposal", excel_proposal_bytes, f"Proposal_{client_name.replace(' ', '_')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    
     pdf_bytes = generate_pdf_quotation(client_name, panel_type, motor_kw, preferred_brand, bom_df, labor_cost, margin_pct, sell_price, curr_sym)
-    b2.download_button("📄 PDF Quote", pdf_bytes.getvalue(), f"Aryavarta_Quote_{client_name}.pdf", mime="application/pdf")
+    b2.download_button("📄 PDF Quote", pdf_bytes.getvalue(), f"Aryavarta_Quote_{client_name.replace(' ', '_')}.pdf", mime="application/pdf")
+    
     pi_bytes = generate_proforma_invoice_pdf(client_name, panel_type, motor_kw, sell_price, curr_sym)
-    b3.download_button("🧾 Proforma Invoice", pi_bytes.getvalue(), f"Proforma_Invoice_{client_name}.pdf", mime="application/pdf")
+    b3.download_button("🧾 Proforma Invoice", pi_bytes.getvalue(), f"Proforma_Invoice_{client_name.replace(' ', '_')}.pdf", mime="application/pdf")
+    
     tds_bytes = generate_tds_pdf(client_name, panel_type, motor_kw, preferred_brand)
-    b4.download_button("📋 Technical Specs (TDS)", tds_bytes.getvalue(), f"TDS_{client_name}.pdf", mime="application/pdf")
+    b4.download_button("📋 Technical Specs (TDS)", tds_bytes.getvalue(), f"TDS_{client_name.replace(' ', '_')}.pdf", mime="application/pdf")
 
     buf_zip = io.BytesIO()
     with zipfile.ZipFile(buf_zip, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr(f"Aryavarta_Quote_{client_name}.pdf", pdf_bytes.getvalue())
         zf.writestr(f"Proforma_Invoice_{client_name}.pdf", pi_bytes.getvalue())
         zf.writestr(f"Technical_Data_Sheet_{client_name}.pdf", tds_bytes.getvalue())
-        zf.writestr(f"BOM_{client_name}.xlsx", buf_xl.getvalue())
-    b5.download_button("📦 Full Proposal (.ZIP)", buf_zip.getvalue(), f"Proposal_Package_{client_name}.zip", mime="application/zip")
+        zf.writestr(f"BOM_{client_name}.xlsx", excel_proposal_bytes)
+    b5.download_button("📦 Full Proposal (.ZIP)", buf_zip.getvalue(), f"Proposal_Package_{client_name.replace(' ', '_')}.zip", mime="application/zip")
 
     st.subheader("📐 Auto-Generated GA Drawing & Power SLD Diagram")
     tab_ga, tab_sld = st.tabs(["🖼️ Enclosure 2D GA Front View", "⚡ Power Single Line Diagram (SLD)"])
@@ -1582,6 +1594,7 @@ elif menu == "Quotation Register & Pipeline":
         reg_buf = io.BytesIO()
         with pd.ExcelWriter(reg_buf, engine="openpyxl") as reg_w:
             q_df.to_excel(reg_w, index=False, sheet_name="Quotes_Register")
+        reg_buf.seek(0)
         st.download_button("📥 Export Full Quotes Register (.XLSX)", reg_buf.getvalue(), f"Quotes_Register_{pd.Timestamp.now().strftime('%Y%m%d')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         
         st.subheader("📊 Quotations Log & Status Manager")
@@ -2115,20 +2128,3 @@ elif menu == "Manage Price Database":
         edited.to_excel(DB_FILE, index=False)
         st.cache_data.clear()
         st.success("Database updated successfully!")
-
-elif menu == "IP Protection Rating & Gasket Guide":
-    st.header("🛡️ Ingress Protection (IP Rating) & Gasket Guide (IEC 60529 / IS 13947)")
-    st.markdown("Select plant environment parameters to determine required IP rating, sealing gasket materials, rain canopy, and louver filter specs.")
-    c1, c2, c3 = st.columns(3)
-    loc = c1.selectbox("Installation Location", ["Indoor Substation / Control Room", "Indoor Plant Floor (Dust/Moisture)", "Outdoor / Exposed Environment"])
-    dust = c2.selectbox("Dust & Particle Exposure", ["Low / Normal Ambient", "Moderate Dust", "Heavy Industrial Dust / Cement / Flyash"])
-    water = c3.selectbox("Liquid / Water Exposure", ["Dry / No Water", "Dripping Water / Condensation", "Splashing Water", "High Pressure Jets / Washdown"])
-    
-    ip_res = get_ip_rating_recommendation(loc, dust, water)
-    st.divider()
-    i1, i2, i3, i4 = st.columns([1.2, 1.5, 1.5, 1.4])
-    i1.metric("Recommended Rating", ip_res["ip_rating"])
-    i2.metric("Door Sealing Gasket", ip_res["gasket"])
-    i3.metric("Rain Canopy Roof Shield", ip_res["canopy"])
-    i4.metric("Louver & Cooling Plan", ip_res["ventilation"])
-    st.info("💡 **Fabrication Tip per IEC 60529:** For IP55 and above, ensure all door hinges and concealed locks use neoprene/O-ring washers, and gland entry plates use brass or aluminum with continuous perimeter gasket seals.")
